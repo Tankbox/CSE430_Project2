@@ -2,21 +2,22 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <fstream>
 
 using namespace std;
 
-bool readGraph(const char* graph)
+bool readGraph(const char* graphFile)
 {
-	ifstream myFile(*graph, "r");
-	
+	ifstream myFile(graphFile);
 	int vertices;
-	cin >> vertices;
-	printf("%d", vertices);
+	myFile >> vertices;
+	myFile >> vertices;
+	myFile.close();
 	return false;
 }
 
 int main( int argc, const char* argv[] )
 {
-	readGraph(argv[0]);
-	printf( "\nHello World\n\n" );
+	readGraph(argv[1]);
+	printf( "\nHello World\n" );
 }
