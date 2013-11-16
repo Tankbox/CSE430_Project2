@@ -1,13 +1,14 @@
-﻿Build started 11/15/2013 1:01:09 AM.
-     1>Project "C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\CSE430_Project2.vcxproj" on node 2 (Build target(s)).
+﻿Build started 11/16/2013 6:05:05 AM.
+     1>Project "F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\CSE430_Project2.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt Project2.cpp
          Project2.cpp
+     1>cl : Command line warning D9028: minimal rebuild failure, reverting to normal build
        Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.lib" /MACHINE:X86 Debug\Project2.obj
-         CSE430_Project2.vcxproj -> C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.exe
-     1>Done Building Project "C:\Development\source-code\Git\CSE430_Project2\CSE430_Project2\CSE430_Project2.vcxproj" (Build target(s)).
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.lib" /MACHINE:X86 Debug\Project2.obj
+         CSE430_Project2.vcxproj -> F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\Debug\CSE430_Project2.exe
+     1>Done Building Project "F:\Dropbox\Joe's Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\CSE430_Project2.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:01.75
+Time Elapsed 00:00:01.25

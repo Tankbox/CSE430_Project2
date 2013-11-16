@@ -80,6 +80,9 @@
   <ItemGroup>
     <ClCompile Include="Project2.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\..\..\..\..\Joe%27s Documents\College\ASU\Classes\S7\CSE430\Project2\CSE430_Project2\CSE430_Project2\Project2.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
