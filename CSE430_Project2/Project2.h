@@ -6,11 +6,6 @@ using namespace std;
 
 struct vertex;
 
-typedef struct request {
-	int source;
-	int destination;
-}Request;
-
 typedef struct vertex {
 	int name;
 	vector<vertex*> neighbors;
@@ -31,6 +26,11 @@ typedef struct geni {
 	int getName(int index) { return vertices.at(index).getName(); }
 }GENI;
 
+typedef struct request {
+	int source;
+	int destination;
+}Request;
+
 typedef struct requestList {
 	vector<Request> requests;
 }RequestList;
@@ -39,7 +39,7 @@ typedef struct neighbors {
 	vector<int> name;
 }Neighbors;
 
-typedef struct neighbotList {
+typedef struct neighborList {
 	vector<Neighbors> neighbors;
 }NeighborList;
 

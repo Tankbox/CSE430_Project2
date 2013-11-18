@@ -3,12 +3,28 @@
 #include <fstream>
 #include <algorithm>
 #include <string>
+#include <thread>
+#include <random>
+#include <chrono>
+#include <time.h>
+#include <iostream>
 #include "Project2.h"
 
 using namespace std;
 
-#define DEBUG true
+// True = program in debug mode (prints status of graph)
+// False = program not in debug mode
+#define DEBUG false
 
+#define GO_BACK -1
+#define VM_ERROR 0
+#define FTE_ERROR 1
+#define BANDWIDTH_ERROR 2
+#define DESTINATION_REACHED 3
+#define PING_FAILED 4
+
+// Debugger function to simply print out the current state of the GENI network
+// and the current state of the connections
 void debugger(GENI myGeni, RequestList myRequestList)
 {
 	for (int i = 0; i < myGeni.vertices.size(); ++i)
@@ -35,6 +51,47 @@ void debugger(GENI myGeni, RequestList myRequestList)
 			myGeni.connections.at(i).nodes[0]->getName(),
 			myGeni.connections.at(i).nodes[1]->getName(),
 			myGeni.connections.at(i).bandwidth);
+}
+
+void printPing(Request myRequest, vector<int> visited, int outcome)
+{
+	switch(outcome) {
+	case DESTINATION_REACHED:
+		printf("\nPing from %d to %d was successful.\nThis is the trace:\n", myRequest.source, myRequest.destination);
+		for(int i = 0; i < visited.size(); ++i)
+			printf("%d ", visited.at(i));
+		break;
+	case PING_FAILED:
+		printf("\nPing from %d to %d failed.\nThis is the trace:\n", myRequest.source, myRequest.destination);
+		for(int i = 0; i < visited.size(); ++i)
+			printf("%d ", visited.at(i));
+		break;
+	}
+}
+
+void printTime(int hold, double time)
+{
+	printf("\nThis requestion took %u seconds to complete. The resources were held for %u seconds.\n\n", time, hold);
+}
+
+void errorHandler(int error)
+{
+	// Error handler tells you where the request went wrong
+	// and what the problem was
+	switch(error) {
+	case VM_ERROR:
+		printf("There was a VM Error\n");
+		exit(EXIT_FAILURE);
+		break;
+	case FTE_ERROR:
+		printf("There was an FTE Error\n");
+		exit(EXIT_FAILURE);
+		break;
+	case BANDWIDTH_ERROR:
+		printf("There was a BANDWIDTH Error\n");
+		exit(EXIT_FAILURE);
+		break;
+	}
 }
 
 void readGraph(GENI &myGeni, const char* graphFile)
@@ -149,9 +206,107 @@ RequestList readRequests(const char* requestsFile)
 	return myRequestList;
 }
 
+int hop(vertex* current, vertex* next, vertex* destination, int iter, vector<int> &visited, vector<int> &visitedThisTime)
+{
+	// If we have not visited this node before, add it to the list
+	if (find(visited.begin(), visited.end(), current->getName()) == visited.end())
+	{
+		// If the FTEs are available, allocate them
+		if (current->FTE >= 5)
+			current->FTE -= 5;
+		// Add this node to the visited list
+		visited.push_back(current->getName());
+		visitedThisTime.push_back(current->getName());
+	}
+
+	// If the current node is equal to our destination
+	if (current->getName() == destination->getName())
+	{
+		// If the VM is available, allocate it at the destination
+		if (current->VM >= 1)
+		{
+			--current->VM;
+			return DESTINATION_REACHED;
+		}
+		// Else there is an error (VM not available)
+		else
+			errorHandler(VM_ERROR);
+	}
+	// Else the current node is not equal to our destination
+	else
+	{
+		// If the next node's name is not in the visited list, hop to it
+		if (find(visited.begin(), visited.end(), next->getName()) == visited.end())
+		{
+			if (hop(next, next->neighbors.at(0), destination, 0, visited, visitedThisTime) == DESTINATION_REACHED)
+				return DESTINATION_REACHED;
+		}
+		// Else if there are still neighbors to check out, check them
+		else if (iter < current->neighbors.size() - 1)
+		{
+			if (hop(current, current->neighbors.at(iter), destination, ++iter, visited, visitedThisTime) == DESTINATION_REACHED)
+				return DESTINATION_REACHED;
+			else
+				return GO_BACK;
+		}
+	}
+
+	current->FTE += 5;
+	return GO_BACK;
+}
+
 void pingRequest(GENI &myGeni, Request myRequest)
 {
+	clock_t start, stop;
+	// Start the clock for this request
+	start = clock();
 
+	// The vector of visited nodes
+	vector<int> visited;
+	// Save the old GENI map to restore resources
+	GENI oldGeni = myGeni;
+
+	// Allocate VMs at the source (and error checking)
+	if (myGeni.vertices.at(myRequest.source-1).VM > 0)
+		--myGeni.vertices.at(myRequest.source-1).VM;
+	else	
+		errorHandler(VM_ERROR);
+
+	// Add the source node to the visited vector
+	visited.push_back(myRequest.source);
+
+	// While the end of the visited array is not the destination, hop
+	do {
+		// Vector for nodes visited for this DFS
+		vector<int> visitedThisTime;
+		visitedThisTime.push_back(myRequest.source);
+
+		// Secore FTEs at the source node
+		if (myGeni.vertices.at(myRequest.source-1).FTE >= 5)
+			myGeni.vertices.at(myRequest.source-1).FTE -= 5;
+		else
+			errorHandler(FTE_ERROR);
+
+		// If the ping was successful, print a successful ping statement
+		if(hop(&myGeni.vertices.at(myRequest.source-1), myGeni.vertices.at(myRequest.source-1).neighbors.at(0), &myGeni.vertices.at(myRequest.destination-1), 0, visited, visitedThisTime) == DESTINATION_REACHED)
+			printPing(myRequest, visitedThisTime, DESTINATION_REACHED);
+		// Else print a failed ping statement
+		else
+			printPing(myRequest, visitedThisTime, PING_FAILED);
+	} while (visited.back() != myRequest.destination);
+
+	// Stop the clock for this request
+	stop = clock();
+	// Hold the resources for this successful request for a random time between 1 and 5 seconds
+	default_random_engine generator;
+	uniform_int_distribution<int> dist(1, 5);
+	int hold = dist(generator);
+	this_thread::sleep_for(chrono::seconds(hold));
+	
+	cout << "\nThis requestion took " + to_string((double(stop - start) / CLOCKS_PER_SEC))
+		+ " seconds to complete. The resources were held for " + to_string(hold) + " seconds." << endl;
+
+	myGeni = oldGeni;
 }
 
 int main( int argc, const char* argv[] )
@@ -162,12 +317,15 @@ int main( int argc, const char* argv[] )
 	// Read in the requests.txt, this should be your second parameter
 	RequestList myRequestList = readRequests(argv[2]);
 
+	// Run debugger to make sure the graph and request list are correct
 	if (DEBUG)
 		debugger(myGeni, myRequestList);
 
 	for (int i = 0; i < myRequestList.requests.size(); ++i)
-	{
 		pingRequest(myGeni, myRequestList.requests.at(i));
-	}
+
+	if (DEBUG)
+		debugger(myGeni, myRequestList);
+
 	return 0;
 }
