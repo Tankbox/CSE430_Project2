@@ -255,7 +255,7 @@ int hop(vertex* current, vertex* next, vertex* destination, int iter, vector<int
 	return GO_BACK;
 }
 
-void pingRequest(GENI &myGeni, Request myRequest)
+void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generator)
 {
 	clock_t start, stop;
 	// Start the clock for this request
@@ -298,7 +298,6 @@ void pingRequest(GENI &myGeni, Request myRequest)
 	// Stop the clock for this request
 	stop = clock();
 	// Hold the resources for this successful request for a random time between 1 and 5 seconds
-	default_random_engine generator;
 	uniform_int_distribution<int> dist(1, 5);
 	int hold = dist(generator);
 	this_thread::sleep_for(chrono::seconds(hold));
@@ -321,8 +320,9 @@ int main( int argc, const char* argv[] )
 	if (DEBUG)
 		debugger(myGeni, myRequestList);
 
+	default_random_engine generator;
 	for (int i = 0; i < myRequestList.requests.size(); ++i)
-		pingRequest(myGeni, myRequestList.requests.at(i));
+		pingRequest(myGeni, myRequestList.requests.at(i), generator);
 
 	if (DEBUG)
 		debugger(myGeni, myRequestList);
