@@ -16,10 +16,11 @@ using namespace std;
 // False = program not in debug mode
 #define DEBUG false
 
+#define BANDWIDTH_ERROR -2
 #define GO_BACK -1
 #define VM_ERROR 0
 #define FTE_ERROR 1
-#define BANDWIDTH_ERROR 2
+#define BANDWIDTH_ALLOCATED 2
 #define DESTINATION_REACHED 3
 #define PING_FAILED 4
 
@@ -67,11 +68,6 @@ void printPing(Request myRequest, vector<int> visited, int outcome)
 			printf("%d ", visited.at(i));
 		break;
 	}
-}
-
-void printTime(int hold, double time)
-{
-	printf("\nThis requestion took %u seconds to complete. The resources were held for %u seconds.\n\n", time, hold);
 }
 
 void errorHandler(int error)
@@ -206,15 +202,48 @@ RequestList readRequests(const char* requestsFile)
 	return myRequestList;
 }
 
-int hop(vertex* current, vertex* next, vertex* destination, int iter, vector<int> &visited, vector<int> &visitedThisTime)
+int bandwidth(int currentNode, int nextNode, vector<Connection>* &connections)
 {
+	// If the currentNode is less than the nextNode, look in the connections vector for
+	// nodes[currentNode], nodes[nextNode] and return success if found
+	if (currentNode < nextNode)
+	{
+		for (int i = 0; i < connections->size(); ++i)
+		{
+			if ((connections->at(i).nodes[0]->getName() == currentNode) && (connections->at(i).nodes[1]->getName() == nextNode))
+			{
+				connections->at(i).bandwidth -= 5;
+				return i;
+			}
+		}
+	}
+	// Else the currentNode is greater than the nextNode, look in the connections vector for
+	// nodes[nextNode], nodes[currentNode] and return success if found
+	else
+	{
+		for (int i = 0; i < connections->size(); ++i)
+		{
+			if ((connections->at(i).nodes[0]->getName() == nextNode) && (connections->at(i).nodes[1]->getName() == currentNode))
+			{
+				connections->at(i).bandwidth -= 5;
+				return i;
+			}
+		}
+	}
+
+	return BANDWIDTH_ERROR;
+}
+
+int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* connections, int iter, vector<int> &visited, vector<int> &visitedThisTime)
+{
+	int connectionLocation = BANDWIDTH_ERROR;
 	// If we have not visited this node before, add it to the list
 	if (find(visited.begin(), visited.end(), current->getName()) == visited.end())
 	{
 		// If the FTEs are available, allocate them
 		if (current->FTE >= 5)
 			current->FTE -= 5;
-		// Add this node to the visited list
+		// Add this node to the visited lists
 		visited.push_back(current->getName());
 		visitedThisTime.push_back(current->getName());
 	}
@@ -238,19 +267,24 @@ int hop(vertex* current, vertex* next, vertex* destination, int iter, vector<int
 		// If the next node's name is not in the visited list, hop to it
 		if (find(visited.begin(), visited.end(), next->getName()) == visited.end())
 		{
-			if (hop(next, next->neighbors.at(0), destination, 0, visited, visitedThisTime) == DESTINATION_REACHED)
+			connectionLocation = bandwidth(current->getName(), next->getName(), connections);
+			// We are about to jump to a new node, so allocate the bandwidth
+			if (connectionLocation == BANDWIDTH_ERROR)
+				errorHandler(BANDWIDTH_ERROR);
+			else if (hop(next, next->neighbors.at(0), destination, connections, 0, visited, visitedThisTime) == DESTINATION_REACHED)
 				return DESTINATION_REACHED;
 		}
-		// Else if there are still neighbors to check out, check them
+		// Else if there are still neighbors to check out, stay on the current node and check them
 		else if (iter < current->neighbors.size() - 1)
 		{
-			if (hop(current, current->neighbors.at(iter), destination, ++iter, visited, visitedThisTime) == DESTINATION_REACHED)
+			if (hop(current, current->neighbors.at(iter), destination, connections, ++iter, visited, visitedThisTime) == DESTINATION_REACHED)
 				return DESTINATION_REACHED;
 			else
 				return GO_BACK;
 		}
 	}
 
+	connections->at(connectionLocation).bandwidth += 5;
 	current->FTE += 5;
 	return GO_BACK;
 }
@@ -288,7 +322,7 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 			errorHandler(FTE_ERROR);
 
 		// If the ping was successful, print a successful ping statement
-		if(hop(&myGeni.vertices.at(myRequest.source-1), myGeni.vertices.at(myRequest.source-1).neighbors.at(0), &myGeni.vertices.at(myRequest.destination-1), 0, visited, visitedThisTime) == DESTINATION_REACHED)
+		if(hop(&myGeni.vertices.at(myRequest.source-1), myGeni.vertices.at(myRequest.source-1).neighbors.at(0), &myGeni.vertices.at(myRequest.destination-1), &myGeni.connections, 0, visited, visitedThisTime) == DESTINATION_REACHED)
 			printPing(myRequest, visitedThisTime, DESTINATION_REACHED);
 		// Else print a failed ping statement
 		else
