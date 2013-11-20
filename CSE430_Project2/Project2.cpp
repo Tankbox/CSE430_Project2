@@ -267,12 +267,17 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 		// If the next node's name is not in the visited list, hop to it
 		if (find(visited.begin(), visited.end(), next->getName()) == visited.end())
 		{
-			connectionLocation = bandwidth(current->getName(), next->getName(), connections);
 			// We are about to jump to a new node, so allocate the bandwidth
+			connectionLocation = bandwidth(current->getName(), next->getName(), connections);
+			// If there is a bandwidth error, handle it
 			if (connectionLocation == BANDWIDTH_ERROR)
 				errorHandler(BANDWIDTH_ERROR);
+			// Else if the hop takes us to our destination
 			else if (hop(next, next->neighbors.at(0), destination, connections, 0, visited, visitedThisTime) == DESTINATION_REACHED)
 				return DESTINATION_REACHED;
+			// Else we need to give the bandwidth for this hop back
+			else
+				connections->at(connectionLocation).bandwidth += 5;
 		}
 		// Else if there are still neighbors to check out, stay on the current node and check them
 		else if (iter < current->neighbors.size() - 1)
@@ -283,8 +288,6 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 				return GO_BACK;
 		}
 	}
-
-	connections->at(connectionLocation).bandwidth += 5;
 	current->FTE += 5;
 	return GO_BACK;
 }
@@ -335,11 +338,12 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 	uniform_int_distribution<int> dist(1, 5);
 	int hold = dist(generator);
 	this_thread::sleep_for(chrono::seconds(hold));
+
+	++myGeni.vertices.at(myRequest.source).VM;
+	++myGeni.vertices.at(myRequest.destination).VM;
 	
 	cout << "\nThis requestion took " + to_string((double(stop - start) / CLOCKS_PER_SEC))
 		+ " seconds to complete. The resources were held for " + to_string(hold) + " seconds." << endl;
-
-	myGeni = oldGeni;
 }
 
 int main( int argc, const char* argv[] )
