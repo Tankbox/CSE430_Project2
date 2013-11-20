@@ -23,6 +23,9 @@ using namespace std;
 #define BANDWIDTH_ALLOCATED 2
 #define DESTINATION_REACHED 3
 #define PING_FAILED 4
+#define ALLOCATE 5
+#define DEALLOCATE 6
+#define DFS_ERROR 7
 
 // Debugger function to simply print out the current state of the GENI network
 // and the current state of the connections
@@ -30,42 +33,45 @@ void debugger(GENI myGeni, RequestList myRequestList)
 {
 	for (int i = 0; i < myGeni.vertices.size(); ++i)
 	{
-		printf("\nNode %d has degree %d with these neighbors:\n\t", myGeni.vertices.at(i).name, myGeni.vertices.at(i).neighbors.size());
+		cout << "\nNode " + to_string(myGeni.vertices.at(i).name) + " has degree " +
+			 to_string(myGeni.vertices.at(i).neighbors.size()) + " with these neighbors:\n\t";
 		for (int j = 0; j < myGeni.vertices.at(i).neighbors.size(); ++j)
 		{
 			if (j+1 != myGeni.vertices.at(i).neighbors.size())
-				printf("%d, ", myGeni.vertices.at(i).neighbors.at(j)->name);
+				cout << to_string(myGeni.vertices.at(i).neighbors.at(j)->name) + ", ";
 			else
-				printf("%d", myGeni.vertices.at(i).neighbors.at(j)->name);
+				cout << to_string(myGeni.vertices.at(i).neighbors.at(j)->name);
 		}
 	}
 
-	printf("\n\n");
+	cout << "\n\n";
 
 	for (int i = 0; i < myGeni.vertices.size(); ++i)
-		printf("Node %d:\n\tVMs:\t%d\n\tFTEs\t%d\n", myGeni.getName(i), myGeni.vertices.at(i).VM, myGeni.vertices.at(i).FTE);
+		cout << "Node " + to_string(myGeni.getName(i)) + ":\n\tVMs:\t" + 
+			to_string(myGeni.vertices.at(i).VM) + "\n\tFTEs\t" + to_string(myGeni.vertices.at(i).FTE);
 
-	printf("\n");
+	cout << "\n";
 
 	for (int i = 0; i < myGeni.connections.size(); ++i)
-		printf("Connection from %d to %d bandwidth:\t%d\n", 
-			myGeni.connections.at(i).nodes[0]->getName(),
-			myGeni.connections.at(i).nodes[1]->getName(),
-			myGeni.connections.at(i).bandwidth);
+		cout << "Connection from " + to_string(myGeni.connections.at(i).nodes[0]->getName()) + 
+			" to " + to_string(myGeni.connections.at(i).nodes[1]->getName()) + " bandwidth:\t" + 
+			to_string(myGeni.connections.at(i).bandwidth) + "\n";
 }
 
 void printPing(Request myRequest, vector<int> visited, int outcome)
 {
 	switch(outcome) {
 	case DESTINATION_REACHED:
-		printf("\nPing from %d to %d was successful.\nThis is the trace:\n", myRequest.source, myRequest.destination);
+		cout << "\nPing from " + to_string(myRequest.source) + " to " + to_string(myRequest.destination)
+			+ " was successful.\nThis is the trace:\n";
 		for(int i = 0; i < visited.size(); ++i)
-			printf("%d ", visited.at(i));
+			cout << to_string(visited.at(i)) + " ";
 		break;
 	case PING_FAILED:
-		printf("\nPing from %d to %d failed.\nThis is the trace:\n", myRequest.source, myRequest.destination);
+		cout << "\nPing from " + to_string(myRequest.source) + " to " + to_string(myRequest.destination)
+			+ " failed.\nThis is the trace:\n";
 		for(int i = 0; i < visited.size(); ++i)
-			printf("%d ", visited.at(i));
+			cout << to_string(visited.at(i)) + " ";
 		break;
 	}
 }
@@ -76,15 +82,20 @@ void errorHandler(int error)
 	// and what the problem was
 	switch(error) {
 	case VM_ERROR:
-		printf("There was a VM Error\n");
+		cout << "\nThere was a VM Error\n";
 		exit(EXIT_FAILURE);
 		break;
 	case FTE_ERROR:
-		printf("There was an FTE Error\n");
+		cout << "\nThere was an FTE Error\n";
 		exit(EXIT_FAILURE);
 		break;
 	case BANDWIDTH_ERROR:
-		printf("There was a BANDWIDTH Error\n");
+		cout << "\nThere was a BANDWIDTH Error\n";
+		exit(EXIT_FAILURE);
+		break;
+	case DFS_ERROR:
+		cout << "\nThere was a DFS Error\nThe graph tried all the neighbors of the"
+			" source node and was unable to find the destination.";
 		exit(EXIT_FAILURE);
 		break;
 	}
@@ -202,7 +213,7 @@ RequestList readRequests(const char* requestsFile)
 	return myRequestList;
 }
 
-int bandwidth(int currentNode, int nextNode, vector<Connection>* &connections)
+int bandwidth(int currentNode, int nextNode, vector<Connection>* connections, int task)
 {
 	// If the currentNode is less than the nextNode, look in the connections vector for
 	// nodes[currentNode], nodes[nextNode] and return success if found
@@ -212,7 +223,12 @@ int bandwidth(int currentNode, int nextNode, vector<Connection>* &connections)
 		{
 			if ((connections->at(i).nodes[0]->getName() == currentNode) && (connections->at(i).nodes[1]->getName() == nextNode))
 			{
-				connections->at(i).bandwidth -= 5;
+				if (task == ALLOCATE)
+					connections->at(i).bandwidth -= 5;
+				else if (task == DEALLOCATE)
+					connections->at(i).bandwidth += 5;
+				else
+					errorHandler(BANDWIDTH_ERROR);
 				return i;
 			}
 		}
@@ -225,7 +241,12 @@ int bandwidth(int currentNode, int nextNode, vector<Connection>* &connections)
 		{
 			if ((connections->at(i).nodes[0]->getName() == nextNode) && (connections->at(i).nodes[1]->getName() == currentNode))
 			{
-				connections->at(i).bandwidth -= 5;
+				if (task == ALLOCATE)
+					connections->at(i).bandwidth -= 5;
+				else if (task == DEALLOCATE)
+					connections->at(i).bandwidth += 5;
+				else
+					errorHandler(BANDWIDTH_ERROR);
 				return i;
 			}
 		}
@@ -234,17 +255,16 @@ int bandwidth(int currentNode, int nextNode, vector<Connection>* &connections)
 	return BANDWIDTH_ERROR;
 }
 
-int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* connections, int iter, vector<int> &visited, vector<int> &visitedThisTime)
+int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* connections, int iter, vector<int> &visitedThisTime)
 {
 	int connectionLocation = BANDWIDTH_ERROR;
 	// If we have not visited this node before, add it to the list
-	if (find(visited.begin(), visited.end(), current->getName()) == visited.end())
+	if (find(visitedThisTime.begin(), visitedThisTime.end(), current->getName()) == visitedThisTime.end())
 	{
 		// If the FTEs are available, allocate them
 		if (current->FTE >= 5)
 			current->FTE -= 5;
 		// Add this node to the visited lists
-		visited.push_back(current->getName());
 		visitedThisTime.push_back(current->getName());
 	}
 
@@ -265,15 +285,15 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 	else
 	{
 		// If the next node's name is not in the visited list, hop to it
-		if (find(visited.begin(), visited.end(), next->getName()) == visited.end())
+		if (find(visitedThisTime.begin(), visitedThisTime.end(), next->getName()) == visitedThisTime.end())
 		{
 			// We are about to jump to a new node, so allocate the bandwidth
-			connectionLocation = bandwidth(current->getName(), next->getName(), connections);
+			connectionLocation = bandwidth(current->getName(), next->getName(), connections, ALLOCATE);
 			// If there is a bandwidth error, handle it
 			if (connectionLocation == BANDWIDTH_ERROR)
 				errorHandler(BANDWIDTH_ERROR);
 			// Else if the hop takes us to our destination
-			else if (hop(next, next->neighbors.at(0), destination, connections, 0, visited, visitedThisTime) == DESTINATION_REACHED)
+			else if (hop(next, next->neighbors.at(0), destination, connections, 0, visitedThisTime) == DESTINATION_REACHED)
 				return DESTINATION_REACHED;
 			// Else we need to give the bandwidth for this hop back
 			else
@@ -282,7 +302,7 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 		// Else if there are still neighbors to check out, stay on the current node and check them
 		else if (iter < current->neighbors.size() - 1)
 		{
-			if (hop(current, current->neighbors.at(iter), destination, connections, ++iter, visited, visitedThisTime) == DESTINATION_REACHED)
+			if (hop(current, current->neighbors.at(iter), destination, connections, ++iter, visitedThisTime) == DESTINATION_REACHED)
 				return DESTINATION_REACHED;
 			else
 				return GO_BACK;
@@ -294,12 +314,15 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 
 void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generator)
 {
+	int attempt = 0, iter = 0;
 	clock_t start, stop;
 	// Start the clock for this request
 	start = clock();
 
 	// The vector of visited nodes
-	vector<int> visited;
+	Visited visited;
+	//vector<int> visited;
+	vector<int> visitedThisTime;
 	// Save the old GENI map to restore resources
 	GENI oldGeni = myGeni;
 
@@ -310,13 +333,14 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 		errorHandler(VM_ERROR);
 
 	// Add the source node to the visited vector
-	visited.push_back(myRequest.source);
+	//visited.push_back(myRequest.source);
 
 	// While the end of the visited array is not the destination, hop
 	do {
 		// Vector for nodes visited for this DFS
-		vector<int> visitedThisTime;
+		visitedThisTime.clear();
 		visitedThisTime.push_back(myRequest.source);
+		visited.aRoute.push_back(visitedThisTime);
 
 		// Secore FTEs at the source node
 		if (myGeni.vertices.at(myRequest.source-1).FTE >= 5)
@@ -324,23 +348,60 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 		else
 			errorHandler(FTE_ERROR);
 
+		if (iter == myGeni.vertices.at(myRequest.source-1).neighbors.size())
+			errorHandler(DFS_ERROR);
+
 		// If the ping was successful, print a successful ping statement
-		if(hop(&myGeni.vertices.at(myRequest.source-1), myGeni.vertices.at(myRequest.source-1).neighbors.at(0), &myGeni.vertices.at(myRequest.destination-1), &myGeni.connections, 0, visited, visitedThisTime) == DESTINATION_REACHED)
-			printPing(myRequest, visitedThisTime, DESTINATION_REACHED);
+		if(hop(&myGeni.vertices.at(myRequest.source-1), myGeni.vertices.at(myRequest.source-1).neighbors.at(iter), &myGeni.vertices.at(myRequest.destination-1), &myGeni.connections, iter, visitedThisTime) == DESTINATION_REACHED)
+		{	
+			// If this route is a new one
+			if (find(visited.aRoute.begin(), visited.aRoute.end(), visitedThisTime) == visited.aRoute.end())
+			{
+				visited.aRoute.at(attempt++) = visitedThisTime;
+				printPing(myRequest, visitedThisTime, DESTINATION_REACHED);
+				++iter;
+			}
+			// Else we need to do something here
+			else
+				++iter;			
+		}
 		// Else print a failed ping statement
 		else
-			printPing(myRequest, visitedThisTime, PING_FAILED);
-	} while (visited.back() != myRequest.destination);
+		{
+			// If this route is a new one
+			if (find(visited.aRoute.begin(), visited.aRoute.end(), visitedThisTime) == visited.aRoute.end())
+			{
+				visited.aRoute.at(attempt++) = visitedThisTime;
+				printPing(myRequest, visitedThisTime, PING_FAILED);
+				++iter;
+			}
+			// Else we need to do something here
+			else
+				++iter;	
+		}
+	} while (visited.aRoute.back().back() != myRequest.destination);
 
 	// Stop the clock for this request
 	stop = clock();
 	// Hold the resources for this successful request for a random time between 1 and 5 seconds
 	uniform_int_distribution<int> dist(1, 5);
 	int hold = dist(generator);
-	this_thread::sleep_for(chrono::seconds(hold));
+	//this_thread::sleep_for(chrono::seconds(hold));
 
-	++myGeni.vertices.at(myRequest.source).VM;
-	++myGeni.vertices.at(myRequest.destination).VM;
+	// Deallocation of resources from the successful ping after the hold
+	++myGeni.vertices.at(myRequest.source-1).VM;
+	++myGeni.vertices.at(myRequest.destination-1).VM;
+	for (int i = 0; i < visitedThisTime.size(); ++i)
+	{
+		if (i+1 != visitedThisTime.size())
+		{
+			if (visitedThisTime.at(i) < visitedThisTime.at(i+1))
+				bandwidth(visitedThisTime.at(i), visitedThisTime.at(i+1), &myGeni.connections, DEALLOCATE);
+			else if (visitedThisTime.at(i+1) < visitedThisTime.at(i))
+				bandwidth(visitedThisTime.at(i+1), visitedThisTime.at(i), &myGeni.connections, DEALLOCATE);
+		}
+		myGeni.vertices.at(visitedThisTime.at(i)-1).FTE += 5;
+	}
 	
 	cout << "\nThis requestion took " + to_string((double(stop - start) / CLOCKS_PER_SEC))
 		+ " seconds to complete. The resources were held for " + to_string(hold) + " seconds." << endl;

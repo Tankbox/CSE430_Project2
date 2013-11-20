@@ -43,4 +43,8 @@ typedef struct neighborList {
 	vector<Neighbors> neighbors;
 }NeighborList;
 
+typedef struct visited {
+	vector<vector<int>> aRoute;
+}Visited;
+
 #endif
