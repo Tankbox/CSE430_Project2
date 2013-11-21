@@ -30,6 +30,7 @@ using namespace std;
 #define SAFETY_LIMIT 1000
 
 pthread_t tid [ SAFETY_LIMIT ];
+pthread_mutex_t hopMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Debugger function to simply print out the current state of the GENI network
 // and the current state of the connections
@@ -352,8 +353,10 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 	return GO_BACK;
 }
 
-void pingRequest(DfsStruct &myDfsStruct)
+void* pingRequest(void* myDfsStruct)
 {
+	DfsStruct localDfsStruct = *((DfsStruct*)(myDfsStruct));
+
 	int attempt = 0, iter = 0;
 	clock_t start, stop;
 	// Start the clock for this request
@@ -361,46 +364,48 @@ void pingRequest(DfsStruct &myDfsStruct)
 
 	// The vector of visited nodes
 	Visited visited;
-	//vector<int> visited;
 	vector<int> visitedThisTime;
 
 	// Allocate VMs at the source (and error checking)
-	if (myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).VM > 0)
-		--myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).VM;
+	if (localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).VM > 0)
+		--localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).VM;
 	else	
 		errorHandler(VM_ERROR);
 
+	pthread_mutex_lock(&hopMutex);
+	
 	// While the end of the visited array is not the destination, hop
 	do {
 		if (DEBUG)
 		{
 			cout << "BEFORE THE REQUEST:" << endl;
 			cout << "Only the VM at the source should be missing from the network." << endl;
-			debugger(myDfsStruct.myGeni, myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest));
+			debugger(localDfsStruct.myGeni, localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest));
 		}
 
 		// Vector for nodes visited for this DFS
 		visitedThisTime.clear();
-		visitedThisTime.push_back(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source);
+		visitedThisTime.push_back(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source);
 		visited.aRoute.push_back(visitedThisTime);
 
 		// Secore FTEs at the source node
-		if (myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).FTE >= 5)
-			myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).FTE -= 5;
+		if (localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).FTE >= 5)
+			localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).FTE -= 5;
 		else
 			errorHandler(FTE_ERROR);
 
-		if (iter == myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).neighbors.size())
+		if (iter == localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).neighbors.size())
 			errorHandler(DFS_ERROR);
 
+
 		// If the ping was successful, print a successful ping statement
-		if(hop(&myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1), myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).neighbors.at(iter), &myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).destination-1), &myDfsStruct.myGeni.connections, iter, visitedThisTime) == DESTINATION_REACHED)
+		if(hop(&localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1), localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).neighbors.at(iter), &localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).destination-1), &localDfsStruct.myGeni.connections, iter, visitedThisTime) == DESTINATION_REACHED)
 		{	
 			// If this route is a new one
 			if (find(visited.aRoute.begin(), visited.aRoute.end(), visitedThisTime) == visited.aRoute.end())
 			{
 				visited.aRoute.at(attempt++) = visitedThisTime;
-				printPing(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest), visitedThisTime, DESTINATION_REACHED);
+				printPing(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest), visitedThisTime, DESTINATION_REACHED);
 				++iter;
 			}
 			// Else we need to do something here
@@ -414,7 +419,7 @@ void pingRequest(DfsStruct &myDfsStruct)
 			if (find(visited.aRoute.begin(), visited.aRoute.end(), visitedThisTime) == visited.aRoute.end())
 			{
 				visited.aRoute.at(attempt++) = visitedThisTime;
-				printPing(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest), visitedThisTime, PING_FAILED);
+				printPing(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest), visitedThisTime, PING_FAILED);
 				++iter;
 			}
 			// Else we need to do something here
@@ -425,42 +430,47 @@ void pingRequest(DfsStruct &myDfsStruct)
 		{
 			cout << "AFTER A REQUEST:" << endl;
 			cout << "At this point, the route taken should have all the appropriate resources missing." << endl;
-			debugger(myDfsStruct.myGeni, myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest));
+			debugger(localDfsStruct.myGeni, localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest));
 		}
 
-	} while (visited.aRoute.back().back() != myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).destination);
+	} while (visited.aRoute.back().back() != localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).destination);
+
+	pthread_mutex_lock(&hopMutex);
+
 
 	// Stop the clock for this request
 	stop = clock();
 	// Hold the resources for this successful request for a random time between 1 and 5 seconds
 	uniform_int_distribution<int> dist(1, 5);
-	int hold = dist(myDfsStruct.generator);
-	//this_thread::sleep_for(chrono::seconds(hold));
+	int hold = dist(localDfsStruct.generator);
+	this_thread::sleep_for(chrono::seconds(hold));
 
 	// Deallocation of resources from the successful ping after the hold
-	++myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).source-1).VM;
-	++myDfsStruct.myGeni.vertices.at(myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest).destination-1).VM;
+	++localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).source-1).VM;
+	++localDfsStruct.myGeni.vertices.at(localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest).destination-1).VM;
 	for (int i = 0; i < visitedThisTime.size(); ++i)
 	{
 		if (i+1 != visitedThisTime.size())
 		{
 			if (visitedThisTime.at(i) < visitedThisTime.at(i+1))
-				bandwidth(visitedThisTime.at(i), visitedThisTime.at(i+1), &myDfsStruct.myGeni.connections, DEALLOCATE);
+				bandwidth(visitedThisTime.at(i), visitedThisTime.at(i+1), &localDfsStruct.myGeni.connections, DEALLOCATE);
 			else if (visitedThisTime.at(i+1) < visitedThisTime.at(i))
-				bandwidth(visitedThisTime.at(i+1), visitedThisTime.at(i), &myDfsStruct.myGeni.connections, DEALLOCATE);
+				bandwidth(visitedThisTime.at(i+1), visitedThisTime.at(i), &localDfsStruct.myGeni.connections, DEALLOCATE);
 		}
-		myDfsStruct.myGeni.vertices.at(visitedThisTime.at(i)-1).FTE += 5;
+		localDfsStruct.myGeni.vertices.at(visitedThisTime.at(i)-1).FTE += 5;
 	}
 
 	if (DEBUG)
 	{
 		cout << "AFTER DEALLOCATION OF RESOURCES:" << endl;
 		cout << "At this point, the network should have given back all the resources for this request." << endl;
-		debugger(myDfsStruct.myGeni, myDfsStruct.myRequestList.requests.at(myDfsStruct.aRequest));
+		debugger(localDfsStruct.myGeni, localDfsStruct.myRequestList.requests.at(localDfsStruct.aRequest));
 	}
 	
 	cout << "\nThis requestion took " + to_string((double(stop - start) / CLOCKS_PER_SEC))
 		+ " seconds to complete. The resources were held for " + to_string(hold) + " seconds." << endl;
+
+	return (void*) &localDfsStruct;
 }
 
 int main( int argc, const char* argv[] )
@@ -483,9 +493,13 @@ int main( int argc, const char* argv[] )
 	for (int i = 0; i < myDfsStruct.myRequestList.requests.size(); ++i)
 	{
 		myDfsStruct.aRequest = i;
-		pingRequest(myDfsStruct);
+		pthread_create(&tid[i], NULL, pingRequest, &myDfsStruct);
+		//pingRequest(myDfsStruct);
 	}
 	
+	for (int i = 0; i < myDfsStruct.myRequestList.requests.size(); ++i)
+		pthread_join(tid[i], NULL);
+
 	if (DEBUG)
 	{
 		cout << "FINAL REPRESENTATION OF TREE" << endl;
