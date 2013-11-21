@@ -74,6 +74,8 @@ void printPing(Request myRequest, vector<int> visited, int outcome)
 			cout << to_string(visited.at(i)) + " ";
 		break;
 	}
+
+	cout << "\n\n";
 }
 
 void errorHandler(int error)
@@ -332,9 +334,6 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 	else	
 		errorHandler(VM_ERROR);
 
-	// Add the source node to the visited vector
-	//visited.push_back(myRequest.source);
-
 	// While the end of the visited array is not the destination, hop
 	do {
 		// Vector for nodes visited for this DFS
@@ -420,6 +419,7 @@ int main( int argc, const char* argv[] )
 		debugger(myGeni, myRequestList);
 
 	default_random_engine generator;
+
 	for (int i = 0; i < myRequestList.requests.size(); ++i)
 		pingRequest(myGeni, myRequestList.requests.at(i), generator);
 
