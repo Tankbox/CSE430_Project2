@@ -1,5 +1,0 @@
-
-Ping from 1 to 12 was successful.
-This is the trace:
-1 2 4 9 3 5 6 7 12 
-

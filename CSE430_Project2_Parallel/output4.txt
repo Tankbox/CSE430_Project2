@@ -1,5 +1,0 @@
-
-Ping from 13 to 30 was successful.
-This is the trace:
-13 33 3 1 2 35 4 5 37 38 36 39 34 6 8 7 9 40 11 10 15 12 17 14 21 16 19 23 25 18 32 22 24 20 30 
-
