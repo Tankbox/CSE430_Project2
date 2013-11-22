@@ -9,6 +9,7 @@
 #include <time.h>
 #include <iostream>
 #include <pthread.h>
+#include <cstdint>
 #include "Project2.h"
 
 using namespace std;
@@ -29,6 +30,7 @@ using namespace std;
 #define SAFETY_LIMIT 150
 
 int requestArray [ SAFETY_LIMIT ], success = 0, attempts = 0;
+double averagePathLength = 0.0;
 pthread_t tid [ SAFETY_LIMIT ];
 pthread_mutex_t geniMutex = PTHREAD_MUTEX_INITIALIZER;
 GENI myGeni;
@@ -72,9 +74,10 @@ void printPing(Request myRequest, vector<int> visited, int outcome)
 	switch(outcome) {
 	case DESTINATION_REACHED:
 		cout << "\nPing from " + to_string(myRequest.source) + " to " + to_string(myRequest.destination)
-			+ " was successful.\nThis is the trace:\n";
+			+ " was successful. The path length is " + to_string(visited.size()) + "\nThis is the trace:\n";
 		for(int i = 0; i < visited.size(); ++i)
 			cout << to_string(visited.at(i)) + " ";
+		averagePathLength += visited.size();
 		break;
 	case PING_FAILED:
 		cout << "\nPing from " + to_string(myRequest.source) + " to " + to_string(myRequest.destination)
@@ -324,7 +327,7 @@ int hop(vertex* current, vertex* next, vertex* destination, vector<Connection>* 
 
 void* pingRequest(void* requestLocation_ptr)
 {
-	int requestLocation = (int) requestLocation_ptr;
+	int requestLocation = (intptr_t) requestLocation_ptr;
 	int attempt = 0, iter = 0;
 	clock_t start, stop;
 	// Start the clock for this request
@@ -445,9 +448,11 @@ int main( int argc, const char* argv[] )
 	if (DEBUG)
 		debugger();
 
-	cout << "\nThere were " << success << " successful requests." << endl;
-	cout << "There were " << attempts << " attempted requests." << endl;
-	cout << "Failure probability of " << ((double)success/attempts) << "%." << endl;
+	cout << "\nThere was/were " << success << " successful request(s)." << endl;
+	cout << "There was/were " << (int)myRequestList.requests.size() - success << " failed request(s)." << endl;
+	cout << "There was/were " << attempts << " attempted request(s)." << endl;
+	cout << "Conflict probability of " << 100 - (((double)success/attempts)*100) << "%." << endl;
+	cout << "The average path length is " << averagePathLength/success << endl;
 
 	pthread_exit(NULL);
 }
