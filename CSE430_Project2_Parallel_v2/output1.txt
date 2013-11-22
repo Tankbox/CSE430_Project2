@@ -1,0 +1,66 @@
+
+There was a VM Conflict
+
+There was a VM Conflict
+
+There was a VM Conflict
+
+There was a VM Conflict
+
+There was a VM Conflict
+
+There was a VM Conflict
+
+Ping from 4 to 6 was successful.
+This is the trace:
+4 1 2 5 6 
+This requestion took 0.000000 seconds to complete. The resources were held for 1 seconds.
+
+Ping from 4 to 5 was successful.
+This is the trace:
+4 1 2 5 
+This requestion took 0.000000 seconds to complete. The resources were held for 2 seconds.
+
+Ping from 2 to 3 was successful.
+This is the trace:
+2 1 3 
+This requestion took 1.000000 seconds to complete. The resources were held for 1 seconds.
+
+Ping from 1 to 2 was successful.
+This is the trace:
+1 2 
+This requestion took 0.000000 seconds to complete. The resources were held for 3 seconds.
+
+Ping from 2 to 6 was successful.
+This is the trace:
+2 5 6 
+This requestion took 3.000000 seconds to complete. The resources were held for 1 seconds.
+
+Ping from 3 to 4 was successful.
+This is the trace:
+3 4 
+This requestion took 0.000000 seconds to complete. The resources were held for 4 seconds.
+
+Ping from 2 to 5 was successful.
+This is the trace:
+2 5 
+This requestion took 4.000000 seconds to complete. The resources were held for 1 seconds.
+
+Ping from 1 to 4 was successful.
+This is the trace:
+1 3 4 
+This requestion took 5.000000 seconds to complete. The resources were held for 1 seconds.
+
+Ping from 1 to 5 was successful.
+This is the trace:
+1 2 5 
+This requestion took 5.000000 seconds to complete. The resources were held for 2 seconds.
+
+Ping from 1 to 3 was successful.
+This is the trace:
+1 3 
+This requestion took 5.000000 seconds to complete. The resources were held for 5 seconds.
+
+There were 10 successful requests.
+There were 15 attempted requests.
+Failure probability of 0.666667%.

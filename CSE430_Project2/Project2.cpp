@@ -385,7 +385,7 @@ void pingRequest(GENI &myGeni, Request myRequest, default_random_engine &generat
 	// Hold the resources for this successful request for a random time between 1 and 5 seconds
 	uniform_int_distribution<int> dist(1, 5);
 	int hold = dist(generator);
-	//this_thread::sleep_for(chrono::seconds(hold));
+	this_thread::sleep_for(chrono::seconds(hold));
 
 	// Deallocation of resources from the successful ping after the hold
 	++myGeni.vertices.at(myRequest.source-1).VM;
